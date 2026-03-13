@@ -24,3 +24,4 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 rusqlite = { version = "0.38.0", features = ["bundled"] }
 winreg = "0.55.0"
+quick-xml = "0.39.2"
