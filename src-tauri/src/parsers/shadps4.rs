@@ -4,6 +4,7 @@ use quick_xml::events::Event;
 use quick_xml::reader::Reader;
 use std::fs;
 use std::path::PathBuf;
+use std::process::Command;
 
 pub struct Shadps4Parser;
 
@@ -19,7 +20,7 @@ impl LibraryParser for Shadps4Parser {
             let game_data_path = shadps4_root.join("game_data");
 
             if game_data_path.exists() {
-                // Iterate through all Title ID folders (e.g., CUSA03173)
+                // Iterate through all Title ID folders
                 if let Ok(entries) = fs::read_dir(&game_data_path) {
                     for entry in entries.flatten() {
                         let path = entry.path();
@@ -37,7 +38,7 @@ impl LibraryParser for Shadps4Parser {
                                 if let Some(folder_name) = path.file_name() {
                                     let cusa_id = folder_name.to_string_lossy().to_string();
                                     
-                                    if let Some(game) = parse_trophy_xml(&trophy_xml_path, cusa_id) {
+                                    if let Some(game) = parse_trophy_xml(&trophy_xml_path, cusa_id, path.to_string_lossy().to_string()) {
                                         games.push(game);
                                     }
                                 }
@@ -53,7 +54,7 @@ impl LibraryParser for Shadps4Parser {
 }
 
 /// Parses the TROP.xml to extract the game title, ignoring trophy status.
-fn parse_trophy_xml(xml_path: &PathBuf, cusa_id: String) -> Option<Game> {
+fn parse_trophy_xml(xml_path: &PathBuf, cusa_id: String, game_path: String) -> Option<Game> {
     let mut reader = match Reader::from_file(xml_path) {
         Ok(r) => r,
         Err(_) => return None,
@@ -95,13 +96,32 @@ fn parse_trophy_xml(xml_path: &PathBuf, cusa_id: String) -> Option<Game> {
     if !game_title.is_empty() {
         Some(Game {
             id: None,
+            game_id: cusa_id,
             description: None,
             title: game_title,
             platform: "PS4".to_string(),
-            executable_path: cusa_id, 
+            executable_path: game_path, 
             cover_url: None,
         })
     } else {
         None
     }
+}
+
+#[tauri::command]
+pub fn launch_shadps4_game(gamepath: String) -> Result<(), String> {
+
+    // hardcoded path to the ShadPS4 exe;
+    // In a future iteration, we should store this in the database and let the user configure it in the UI
+    let shadps4_exe: PathBuf = PathBuf::from("C:\\Program Files\\ShadPS4\\ShadPS4.exe");
+    if !shadps4_exe.exists() {
+        return Err("ShadPS4 exe not found at C:\\Program Files\\ShadPS4\\ShadPS4.exe. Please ensure ShadPS4 is installed.".to_string());
+    }
+
+    Command::new(shadps4_exe)
+        .arg(&gamepath)
+        .spawn()
+        .map_err(|e| format!("Failed to launch PS4 game: {}", e))?;
+
+    Ok(())
 }
