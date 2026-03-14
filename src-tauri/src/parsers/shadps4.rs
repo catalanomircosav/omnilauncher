@@ -109,19 +109,24 @@ fn parse_trophy_xml(xml_path: &PathBuf, cusa_id: String, game_path: String) -> O
 }
 
 #[tauri::command]
-pub fn launch_shadps4_game(gamepath: String) -> Result<(), String> {
-
-    // hardcoded path to the ShadPS4 exe;
-    // In a future iteration, we should store this in the database and let the user configure it in the UI
-    let shadps4_exe: PathBuf = PathBuf::from("C:\\Program Files\\ShadPS4\\ShadPS4.exe");
+pub fn launch_shadps4_game(game_id: String) -> Result<(), String> {
+    let shadps4_exe = std::path::PathBuf::from("C:\\Program Files (x86)\\shadPS4\\shadPS4.exe");
+    
     if !shadps4_exe.exists() {
-        return Err("ShadPS4 exe not found at C:\\Program Files\\ShadPS4\\ShadPS4.exe. Please ensure ShadPS4 is installed.".to_string());
+        let err_msg = format!("ShadPS4 not found in {:?}", shadps4_exe);
+        println!("Errore: {}", err_msg);
+        return Err(err_msg);
     }
 
-    Command::new(shadps4_exe)
-        .arg(&gamepath)
+    std::process::Command::new(&shadps4_exe)
+        .current_dir(shadps4_exe.parent().unwrap()) 
+        .arg(&game_id)
         .spawn()
-        .map_err(|e| format!("Failed to launch PS4 game: {}", e))?;
+        .map_err(|e| {
+            let err = format!("Error while launching the game: {}", e);
+            println!("{}", err);
+            err
+        })?;
 
     Ok(())
 }

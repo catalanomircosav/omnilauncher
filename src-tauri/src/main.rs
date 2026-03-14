@@ -7,6 +7,14 @@ use tauri::Manager;
 use std::sync::Mutex;
 use parsers::LibraryParser;
 
+use rusqlite;
+
+#[tauri::command]
+fn get_games(conn: tauri::State<Mutex<rusqlite::Connection>>) -> Vec<db::Game> {
+    let conn = conn.lock().unwrap();
+    db::_get_all_games(&conn).unwrap_or_else(|_| Vec::new())
+}
+
 fn main() {
     tauri::Builder::default()
         .setup(|app| {
@@ -44,7 +52,7 @@ fn main() {
 
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![parsers::steam::launch_steam_game, parsers::shadps4::launch_shadps4_game])
+        .invoke_handler(tauri::generate_handler![parsers::steam::launch_steam_game, parsers::shadps4::launch_shadps4_game, get_games])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

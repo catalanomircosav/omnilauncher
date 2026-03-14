@@ -1,156 +1,87 @@
 <script lang="ts">
-  import { invoke } from "@tauri-apps/api/core";
+  const mockGames = [
+    { title: "Terraria", platform: "Steam", cover: "https://via.placeholder.com/150x200?text=Terraria" },
+    { title: "Bloodborne", platform: "PS4", cover: "https://via.placeholder.com/150x200?text=Bloodborne" },
+    { title: "Balatro", platform: "Steam", cover: "https://via.placeholder.com/150x200?text=Balatro" },
+    { title: "Clank™", platform: "PS4", cover: "https://via.placeholder.com/150x200?text=Clank" },
+  ];
 
-  let name = $state("");
-  let greetMsg = $state("");
+  let filter = $state("All");
 
-  async function greet(event: Event) {
-    event.preventDefault();
-    // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-    greetMsg = await invoke("greet", { name });
-  }
+  let filteredGames = $derived(
+    filter === "All" ? mockGames : mockGames.filter(g => g.platform === filter)
+  );
 </script>
 
-<main class="container">
-  <h1>Welcome to Tauri + Svelte</h1>
+<div class="flex h-screen bg-zinc-950 text-zinc-100 font-sans">
+  <aside class="w-64 border-r border-zinc-800 p-6 flex flex-col gap-8 bg-zinc-900/50">
+    <div class="flex items-center gap-3 px-2">
+      <div class="w-8 h-8 bg-blue-600 rounded-lg shadow-[0_0_15px_rgba(37,99,235,0.4)]"></div>
+      <h1 class="text-xl font-bold tracking-tight text-white">OmniLauncher</h1>
+    </div>
 
-  <div class="row">
-    <a href="https://vite.dev" target="_blank">
-      <img src="/vite.svg" class="logo vite" alt="Vite Logo" />
-    </a>
-    <a href="https://tauri.app" target="_blank">
-      <img src="/tauri.svg" class="logo tauri" alt="Tauri Logo" />
-    </a>
-    <a href="https://svelte.dev" target="_blank">
-      <img src="/svelte.svg" class="logo svelte-kit" alt="SvelteKit Logo" />
-    </a>
-  </div>
-  <p>Click on the Tauri, Vite, and SvelteKit logos to learn more.</p>
+    <nav class="flex flex-col gap-2">
+      <p class="text-[10px] uppercase tracking-widest text-zinc-500 font-bold px-2 mb-2">Library</p>
+      {#each ["All", "Steam", "PS4"] as platform}
+        <button
+          onclick={() => filter = platform}
+          class="flex items-center px-3 py-2 rounded-md transition-all duration-200 group
+          {filter === platform ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-200'}"
+        >
+          <span class="text-sm font-medium">{platform}</span>
+          {#if filter === platform}
+            <div class="ml-auto w-1.5 h-1.5 bg-blue-500 rounded-full"></div>
+          {/if}
+        </button>
+      {/each}
+    </nav>
+  </aside>
 
-  <form class="row" onsubmit={greet}>
-    <input id="greet-input" placeholder="Enter a name..." bind:value={name} />
-    <button type="submit">Greet</button>
-  </form>
-  <p>{greetMsg}</p>
-</main>
+  <main class="flex-1 overflow-y-auto p-8">
+    <header class="mb-10 flex justify-between items-end">
+      <div>
+        <h2 class="text-3xl font-bold text-white mb-1">{filter} Games</h2>
+        <p class="text-zinc-400 text-sm">Showing {filteredGames.length} titles</p>
+      </div>
+      
+      <div class="flex gap-4">
+        <input 
+          type="text" 
+          placeholder="Search library..." 
+          class="bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600 transition-all w-64"
+        />
+      </div>
+    </header>
+
+    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-6">
+      {#each filteredGames as game}
+        <div class="group relative bg-zinc-900 rounded-xl overflow-hidden border border-zinc-800 hover:border-zinc-600 transition-all duration-300 shadow-lg hover:shadow-blue-900/10 hover:-translate-y-1">
+          <div class="aspect-[3/4] bg-zinc-800 overflow-hidden relative">
+            <img 
+              src={game.cover} 
+              alt={game.title} 
+              class="w-full h-full object-cover opacity-80 group-hover:opacity-100 group-hover:scale-105 transition-all duration-500"
+            />
+            <div class="absolute inset-0 bg-gradient-to-t from-zinc-950 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-4">
+              <button class="w-full bg-white text-black font-bold py-2 rounded-lg text-sm shadow-xl active:scale-95 transition-transform">
+                Launch
+              </button>
+            </div>
+          </div>
+          
+          <div class="p-3">
+            <h3 class="font-semibold text-sm truncate text-zinc-100">{game.title}</h3>
+            <p class="text-xs text-zinc-500 mt-1">{game.platform}</p>
+          </div>
+        </div>
+      {/each}
+    </div>
+  </main>
+</div>
 
 <style>
-.logo.vite:hover {
-  filter: drop-shadow(0 0 2em #747bff);
-}
-
-.logo.svelte-kit:hover {
-  filter: drop-shadow(0 0 2em #ff3e00);
-}
-
-:root {
-  font-family: Inter, Avenir, Helvetica, Arial, sans-serif;
-  font-size: 16px;
-  line-height: 24px;
-  font-weight: 400;
-
-  color: #0f0f0f;
-  background-color: #f6f6f6;
-
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  -webkit-text-size-adjust: 100%;
-}
-
-.container {
-  margin: 0;
-  padding-top: 10vh;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  text-align: center;
-}
-
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: 0.75s;
-}
-
-.logo.tauri:hover {
-  filter: drop-shadow(0 0 2em #24c8db);
-}
-
-.row {
-  display: flex;
-  justify-content: center;
-}
-
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
-}
-
-a:hover {
-  color: #535bf2;
-}
-
-h1 {
-  text-align: center;
-}
-
-input,
-button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
-  font-family: inherit;
-  color: #0f0f0f;
-  background-color: #ffffff;
-  transition: border-color 0.25s;
-  box-shadow: 0 2px 2px rgba(0, 0, 0, 0.2);
-}
-
-button {
-  cursor: pointer;
-}
-
-button:hover {
-  border-color: #396cd8;
-}
-button:active {
-  border-color: #396cd8;
-  background-color: #e8e8e8;
-}
-
-input,
-button {
-  outline: none;
-}
-
-#greet-input {
-  margin-right: 5px;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    color: #f6f6f6;
-    background-color: #2f2f2f;
+  :global(body) {
+    background-color: #09090b;
+    margin: 0;
   }
-
-  a:hover {
-    color: #24c8db;
-  }
-
-  input,
-  button {
-    color: #ffffff;
-    background-color: #0f0f0f98;
-  }
-  button:active {
-    background-color: #0f0f0f69;
-  }
-}
-
 </style>
