@@ -3,6 +3,7 @@ use std::fs;
 use std::fs::File;
 use std::io::{self, BufRead};
 use std::path::PathBuf;
+use std::process::Command;
 
 use super::LibraryParser;
 
@@ -122,10 +123,11 @@ fn parse_appmanifest(path: &PathBuf) -> Option<Game> {
 
         Some(Game {
             id: None,
+            game_id: appid.clone(),
             description: None,
             title: name,
             platform: "Steam".to_string(),
-            executable_path: appid,
+            executable_path: "".to_string(),
             cover_url: None,
         })
     } else { 
@@ -157,4 +159,15 @@ fn is_valid_game(appid: &str, name: &str) -> bool {
     }
 
     true
+}
+
+#[tauri::command]
+pub fn launch_steam_game(game_id: String) -> Result<(), String> {
+    let uri: String = format!("steam://rungameid/{}", game_id);
+    Command::new("cmd")
+        .args(&["/c", "start", &uri])
+        .spawn()
+        .map_err(|e| format!("Failed to launch game {}", e))?;
+    
+    Ok(())
 }

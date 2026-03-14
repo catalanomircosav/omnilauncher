@@ -5,7 +5,7 @@ mod parsers;
 
 use tauri::Manager;
 use std::sync::Mutex;
-use parsers::LibraryParser; // Import the common trait
+use parsers::LibraryParser;
 
 fn main() {
     tauri::Builder::default()
@@ -21,11 +21,9 @@ fn main() {
 
             // 1. Scan Steam
             let steam_games = parsers::steam::SteamParser::get_installed_games();
-            println!("Found {} valid games installed via Steam.", steam_games.len());
 
             // 2. Scan shadPS4
             let ps4_games = parsers::shadps4::Shadps4Parser::get_installed_games();
-            println!("Found {} valid games played via shadPS4.", ps4_games.len());
 
             // 3. Combine the collections
             let mut all_games = steam_games;
@@ -36,7 +34,7 @@ fn main() {
             // 4. Save everything to SQLite
             for game in all_games {
                 match db::insert_game(&conn, &game) {
-                    Ok(_) => println!("Successfully saved: {} [{}]", game.title, game.platform),
+                    Ok(_) => print!(""),
                     Err(e) => eprintln!("Failed to save {}: {}", game.title, e),
                 }
             }
@@ -46,7 +44,7 @@ fn main() {
 
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![])
+        .invoke_handler(tauri::generate_handler![parsers::steam::launch_steam_game, parsers::shadps4::launch_shadps4_game])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

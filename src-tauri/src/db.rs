@@ -3,9 +3,10 @@ use serde::{Serialize, Deserialize};
 use std::fs;
 use std::path::PathBuf;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Game {
     pub id: Option<i32>,
+    pub game_id: String,
     pub description: Option<String>,
     pub title: String,
     pub platform: String,
@@ -15,40 +16,49 @@ pub struct Game {
 
 /// Inserts a new game into the database
 pub fn insert_game(conn: &Connection, game: &Game) -> Result<usize> {
-    conn.execute(
-        "INSERT INTO games (title, description, platform, executable_path, cover_url)
-         VALUES (?1, ?2, ?3, ?4, ?5)",
-        params![
-            &game.title,
-            &game.description,
-            &game.platform,
-            &game.executable_path,
-            &game.cover_url
-        ],
-    )
+
+    let exists: bool = conn.query_row(
+    "SELECT EXISTS(SELECT 1 FROM games WHERE title = ?1 AND platform = ?2)",
+        [&game.title, &game.platform],
+        |row| row.get(0),
+    )?;
+
+    if exists {
+        println!("Game already exists: {} [{}]", game.title, game.platform);
+        return Ok(0);
+    } else {
+        conn.execute(
+            "INSERT INTO games (title, game_id, description, platform, executable_path, cover_url)
+            VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            params![
+                &game.title,
+                &game.game_id,
+                &game.description,
+                &game.platform,
+                &game.executable_path,
+                &game.cover_url
+            ],
+        )
+    }
 }
 
 /// Retrieves all the games from the database
-pub fn get_all_games(conn: &Connection) -> Result<Vec<Game>> {
-    let mut stmt = conn.prepare("SELECT id, description, title, platform, executable_path, cover_url FROM games")?;
+pub fn _get_all_games(conn: &Connection) -> Result<Vec<Game>, rusqlite::Error> {
+    let mut stmt = conn.prepare("SELECT id, game_id, description, title, platform, executable_path, cover_url FROM games")?;
 
     let game_iter = stmt.query_map([], |row| {
         Ok(Game {
             id: row.get(0)?,
-            description: row.get(1)?,
-            title: row.get(2)?,
-            platform: row.get(3)?,
-            executable_path: row.get(4)?,
-            cover_url: row.get(5)?,
+            game_id: row.get(1)?,
+            description: row.get(2)?,
+            title: row.get(3)?,
+            platform: row.get(4)?,
+            executable_path: row.get(5)?,
+            cover_url: row.get(6)?,
         })
     })?;
 
-    let mut games = Vec::new();
-    for game in game_iter {
-        games.push(game?);
-    }
-
-    Ok(games)
+    game_iter.collect()
 }
 
 /// Initializes the SQLite database and creates the necessary tables
@@ -68,10 +78,11 @@ pub fn init_db(app_data_dir: &PathBuf) -> Result<Connection> {
     conn.execute(
         "CREATE TABLE IF NOT EXISTS games (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
+            game_id TEXT NOT NULL,
             title TEXT NOT NULL,
             description TEXT,
             platform TEXT NOT NULL,
-            executable_path TEXT NOT NULL,
+            executable_path TEXT,
             cover_url TEXT
         )",
         [], // Empty parameters
