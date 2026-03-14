@@ -4,7 +4,6 @@ use quick_xml::events::Event;
 use quick_xml::reader::Reader;
 use std::fs;
 use std::path::PathBuf;
-use std::process::Command;
 
 pub struct Shadps4Parser;
 

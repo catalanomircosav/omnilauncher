@@ -1,16 +1,52 @@
 <script lang="ts">
-  const mockGames = [
-    { title: "Terraria", platform: "Steam", cover: "https://via.placeholder.com/150x200?text=Terraria" },
-    { title: "Bloodborne", platform: "PS4", cover: "https://via.placeholder.com/150x200?text=Bloodborne" },
-    { title: "Balatro", platform: "Steam", cover: "https://via.placeholder.com/150x200?text=Balatro" },
-    { title: "Clank™", platform: "PS4", cover: "https://via.placeholder.com/150x200?text=Clank" },
-  ];
+  import { invoke } from "@tauri-apps/api/core";
+  import { onMount } from "svelte";
 
+  interface Game {
+    id?: number;
+    game_id: string;
+    description?: string;
+    title: string;
+    platform: string;
+    executable_path: string;
+    cover_url?: string;
+  }
+
+  // Svelte 5 Runes
+  let games = $state<Game[]>([]);
   let filter = $state("All");
+  let isLoading = $state(true);
 
+  // Filtro derivato dai dati reali del backend
   let filteredGames = $derived(
-    filter === "All" ? mockGames : mockGames.filter(g => g.platform === filter)
+    filter === "All" ? games : games.filter(g => g.platform === filter)
   );
+
+  async function loadGames() {
+    try {
+      isLoading = true;
+      // Chiamata al comando Rust get_games (Issue #3)
+      games = await invoke<Game[]>("get_games");
+    } catch (error) {
+      console.error("Errore nel caricamento dei giochi:", error);
+    } finally {
+      isLoading = false;
+    }
+  }
+
+  async function launchGame(game: Game) {
+    try {
+      if (game.platform === "Steam") {
+        await invoke("launch_steam_game", { gameId: game.game_id });
+      } else if (game.platform === "PS4") {
+        await invoke("launch_shadps4_game", { gameId: game.game_id });
+      }
+    } catch (error) {
+      console.error("Errore durante l'avvio:", error);
+    }
+  }
+
+  onMount(loadGames);
 </script>
 
 <div class="flex h-screen bg-zinc-950 text-zinc-100 font-sans">
@@ -38,50 +74,48 @@
   </aside>
 
   <main class="flex-1 overflow-y-auto p-8">
-    <header class="mb-10 flex justify-between items-end">
-      <div>
-        <h2 class="text-3xl font-bold text-white mb-1">{filter} Games</h2>
-        <p class="text-zinc-400 text-sm">Showing {filteredGames.length} titles</p>
+    {#if isLoading}
+      <div class="h-full flex items-center justify-center">
+        <p class="text-zinc-500 animate-pulse">Scanning library...</p>
       </div>
-      
-      <div class="flex gap-4">
-        <input 
-          type="text" 
-          placeholder="Search library..." 
-          class="bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600 transition-all w-64"
-        />
-      </div>
-    </header>
+    {:else}
+      <header class="mb-10 flex justify-between items-end">
+        <div>
+          <h2 class="text-3xl font-bold text-white mb-1">{filter} Games</h2>
+          <p class="text-zinc-400 text-sm">Found {filteredGames.length} titles in your database</p>
+        </div>
+      </header>
 
-    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-6">
-      {#each filteredGames as game}
-        <div class="group relative bg-zinc-900 rounded-xl overflow-hidden border border-zinc-800 hover:border-zinc-600 transition-all duration-300 shadow-lg hover:shadow-blue-900/10 hover:-translate-y-1">
-          <div class="aspect-[3/4] bg-zinc-800 overflow-hidden relative">
-            <img 
-              src={game.cover} 
-              alt={game.title} 
-              class="w-full h-full object-cover opacity-80 group-hover:opacity-100 group-hover:scale-105 transition-all duration-500"
-            />
-            <div class="absolute inset-0 bg-gradient-to-t from-zinc-950 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-4">
-              <button class="w-full bg-white text-black font-bold py-2 rounded-lg text-sm shadow-xl active:scale-95 transition-transform">
-                Launch
-              </button>
+      <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-6">
+        {#each filteredGames as game}
+          <div class="group relative bg-zinc-900 rounded-xl overflow-hidden border border-zinc-800 hover:border-zinc-500 transition-all duration-300">
+            <div class="aspect-[3/4] bg-zinc-800 relative">
+              <img 
+                src={game.cover_url || `https://via.placeholder.com/300x400/18181b/ffffff?text=${game.title}`} 
+                alt={game.title} 
+                class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+              />
+              <div class="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center p-6">
+                <button 
+                  onclick={() => launchGame(game)}
+                  class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-6 rounded-full shadow-2xl transform translate-y-4 group-hover:translate-y-0 transition-all duration-300"
+                >
+                  PLAY
+                </button>
+              </div>
+            </div>
+            
+            <div class="p-3 bg-zinc-900">
+              <h3 class="font-semibold text-sm truncate text-zinc-100">{game.title}</h3>
+              <div class="flex items-center gap-2 mt-1">
+                <span class="text-[10px] px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400 border border-zinc-700">
+                  {game.platform}
+                </span>
+              </div>
             </div>
           </div>
-          
-          <div class="p-3">
-            <h3 class="font-semibold text-sm truncate text-zinc-100">{game.title}</h3>
-            <p class="text-xs text-zinc-500 mt-1">{game.platform}</p>
-          </div>
-        </div>
-      {/each}
-    </div>
+        {/each}
+      </div>
+    {/if}
   </main>
 </div>
-
-<style>
-  :global(body) {
-    background-color: #09090b;
-    margin: 0;
-  }
-</style>
